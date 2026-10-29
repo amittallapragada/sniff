@@ -1,4 +1,4 @@
-# Sniff
+# 🐷 Sniff
 
 An open-source AI assistant that can make phone calls on your behalf. Think Muse or Instinct, but with a voice — it can call restaurants, schedule appointments, and handle errands over the phone.
 
