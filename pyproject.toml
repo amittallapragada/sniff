@@ -1,0 +1,63 @@
+[project]
+name = "sniff"
+version = "0.1.0"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    # Web framework
+    "fastapi>=0.115.6",
+    "uvicorn[standard]>=0.32.1",
+    # Twilio
+    "twilio>=9.4.3",
+    # LLM — google-genai SDK (installed via browser-use; used for chat, voice, embeddings, summaries)
+    # Voice pipeline (google extra conflicts with browser-use's genai pin, but GoogleLLMService works without it)
+    "pipecat-ai[cartesia,silero]>=0.0.108",
+    # STT — added when voice pipeline STT is wired up
+    # "faster-whisper>=1.2.1",
+    # TTS
+    "cartesia>=4.2.0",
+    # Browser automation
+    "browser-use>=0.13.14",
+    "playwright>=1.49.0",
+    # Database
+    "supabase>=2.10.0",
+    # Utilities
+    "python-dotenv>=1.0.1",
+    "pydantic>=2.10.4",
+    "pydantic-settings>=2.7.0",
+    "httpx>=0.28.1",
+    "duckduckgo-search>=8.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.0",
+    "ty>=0.0.1a6",
+]
+
+[tool.uv]
+# onnxruntime 1.20+ dropped macOS 13 arm64 wheels; pin for local dev on macOS 13
+override-dependencies = ["onnxruntime>=1.16.3,<1.20.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent", "auth", "capabilities", "interfaces", "memory", "webhooks"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.lint.isort]
+known-first-party = ["agent", "auth", "capabilities", "config", "interfaces", "memory", "webhooks"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ty]
+python-version = "3.11"
