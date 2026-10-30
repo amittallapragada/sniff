@@ -22,9 +22,8 @@ class Settings(BaseSettings):
     # Cartesia
     cartesia_api_key: str
 
-    # Supabase
-    supabase_url: str
-    supabase_service_role_key: str
+    # Database
+    db_path: str = "sniff.db"
 
     # App
     app_base_url: str

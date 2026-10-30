@@ -48,7 +48,7 @@ Telegram → FastAPI → Gemini Flash (agentic tool loop)
                          ├── web_search (DuckDuckGo)
                          ├── scrappa_search (flights, hotels, shopping)
                          ├── browse_web (headless browser, last resort)
-                         ├── remember (pgvector embeddings)
+                         ├── remember (SQLite + vector embeddings)
                          └── place_call → Twilio → Pipecat pipeline
                                             ├── Cartesia STT (ink-2)
                                             ├── Gemini Flash (voice LLM)
@@ -106,7 +106,7 @@ This runs on GCP's Always Free e2-micro instance. Here's what a typical month lo
 | Gemini Flash | ~$2 | ~4,000 messages + call transcripts + summaries |
 | Cartesia | $0 | Free tier: 20K credits ≈ 20 min of calls (~8 calls) |
 | Twilio | ~$2 | $1.15 for the number + $0.014/min for calls |
-| Supabase | $0 | Free tier: 500MB Postgres + pgvector — plenty for one user |
+| SQLite | $0 | Built into Python — no external database needed |
 | DuckDuckGo | $0 | No API key needed |
 | **Total** | **~$4** | |
 
@@ -118,7 +118,7 @@ This is a single-user assistant, not a SaaS product. The usage patterns are mode
 
 **Cartesia's free tier** gives you 20K credits per month. TTS runs about 800 credits per minute of speech, and STT (ink-2) runs 180 credits per minute. A typical 3-minute call uses ~3,000 credits for both directions. That's **6-8 calls per month** on the free tier — enough for most people. If you need more, their Pro plan is $5/month.
 
-**Supabase's free tier** includes 500MB of Postgres storage with pgvector. Conversation history and embeddings for a single user won't come close to that for years.
+**SQLite** is built into Python — no signup, no external service, no cost. Conversation history, embeddings, and user data all live in a single `sniff.db` file. Vector search uses brute-force cosine similarity in Python, which is instant for a single user with a few hundred memories.
 
 **GCP's Always Free e2-micro** (2 shared vCPU, 1GB RAM) is more than enough for FastAPI + uvicorn serving one user. It runs indefinitely — no 12-month trial like AWS.
 
@@ -149,7 +149,7 @@ The vision is simple: one assistant that handles everything I'd rather not do my
 
 The code is open source: [github.com/amittallapragada/sniff](https://github.com/amittallapragada/sniff)
 
-Setup takes about 15 minutes — you need API keys for Gemini, Twilio, Telegram, Cartesia, and Scrappa, plus a free Supabase project. The README has full instructions.
+Setup takes about 10 minutes — you need API keys for Gemini, Twilio, Telegram, Cartesia, and Scrappa. No external database required — SQLite runs locally out of the box. The README has full instructions.
 
 It's a single-user, self-hosted assistant. You own your data, your conversations, and your call recordings. No subscription, no waitlist.
 

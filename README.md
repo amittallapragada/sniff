@@ -10,7 +10,7 @@ Built with Gemini Flash, Pipecat, Twilio, and Cartesia. Runs for under $5/month.
 - **Chat via Telegram** — conversational AI with memory, emoji reactions, and HTML formatting
 - **Web search** — DuckDuckGo for general queries, Scrappa API for flights/hotels/shopping
 - **Browser automation** — browser-use for tasks that require clicking buttons and filling forms
-- **Semantic memory** — remembers your preferences across conversations using pgvector embeddings
+- **Semantic memory** — remembers your preferences across conversations using vector embeddings
 
 ## Demo
 
@@ -44,7 +44,7 @@ Telegram → FastAPI → Gemini Flash (agentic tool loop)
                          ├── web_search (DuckDuckGo)
                          ├── scrappa_search (structured data)
                          ├── browse_web (browser-use + Chromium)
-                         ├── remember (pgvector embeddings)
+                         ├── remember (vector embeddings)
                          └── place_call → Twilio → Pipecat pipeline
                                             ├── Cartesia STT (ink-2)
                                             ├── Gemini Flash (voice LLM)
@@ -72,7 +72,7 @@ The voice pipeline uses a security-hardened prompt — no user details, phone nu
 | Gemini Flash | ~$1-2/mo |
 | Cartesia (free tier, ~20 min/mo) | $0 |
 | Twilio (number + minutes) | ~$2/mo |
-| Supabase (free tier) | $0 |
+| SQLite | $0 |
 | **Total** | **~$3-4/mo** |
 
 ## Setup
@@ -81,7 +81,6 @@ The voice pipeline uses a security-hardened prompt — no user details, phone nu
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv) package manager
-- A Supabase project
 - API keys for: Gemini, Twilio, Telegram Bot, Cartesia, Scrappa
 
 ### 1. Clone and install
@@ -99,19 +98,22 @@ cp .env.example .env
 # Fill in your API keys
 ```
 
-### 3. Set up the database
+### 3. Add yourself to the database
 
-Run the migration against your Supabase project:
+The database (SQLite) is created automatically on first run. Add yourself using the included script:
 
 ```bash
-psql $DATABASE_URL -f supabase/migrations/001_initial.sql
-```
-
-Then add yourself to the `users` table:
-
-```sql
-INSERT INTO users (phone_number, telegram_id, name, persona_name, timezone)
-VALUES ('+1234567890', 123456789, 'Your Name', 'Your Name', 'America/New_York');
+uv run python -c "
+from memory.db import get_db
+import uuid
+db = get_db()
+db.execute(
+    'INSERT INTO users (id, phone_number, telegram_id, name, persona_name, timezone) VALUES (?, ?, ?, ?, ?, ?)',
+    (str(uuid.uuid4()), '+1234567890', 123456789, 'Your Name', 'Your Name', 'America/New_York')
+)
+db.commit()
+print('User created!')
+"
 ```
 
 ### 4. Expose your local server
@@ -122,7 +124,13 @@ Sniff needs a public URL for Twilio and Telegram webhooks. Use Cloudflare Tunnel
 cloudflared tunnel --url localhost:8000
 ```
 
-Set `APP_BASE_URL` in `.env` to the tunnel URL.
+Set `APP_BASE_URL` in `.env` to the tunnel URL, then update your Twilio phone number's webhook:
+
+```bash
+uv run python scripts/update_twilio_webhook.py
+```
+
+This points Twilio's voice webhook to your tunnel URL. Re-run this whenever your tunnel URL changes.
 
 ### 5. Run
 
@@ -154,9 +162,9 @@ sniff/
 │   └── browser/
 │       └── tasks.py                 # browser-use agent
 ├── memory/
-│   ├── db.py                        # Supabase client
+│   ├── db.py                        # SQLite connection + schema
 │   ├── history.py                   # Conversation history
-│   └── semantic.py                  # Embeddings + vector search
+│   └── semantic.py                  # Embeddings + cosine similarity search
 ├── interfaces/
 │   └── telegram.py                  # Telegram Bot API (send, react, emoji picker)
 ├── webhooks/
@@ -164,10 +172,7 @@ sniff/
 │   ├── voice.py                     # Twilio voice webhooks (outbound + AMD)
 │   └── stream.py                    # WebSocket endpoint for Pipecat
 ├── auth/
-│   └── users.py                     # User model + Supabase lookups
-└── supabase/
-    └── migrations/
-        └── 001_initial.sql          # Database schema
+│   └── users.py                     # User model + SQLite lookups
 ```
 
 ## Legal

@@ -3,7 +3,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from memory.db import get_client
+import json
+
+from memory.db import get_db
 
 
 class CallStatus(StrEnum):
@@ -83,14 +85,16 @@ def close_session(call_sid: str) -> None:
     session = _sessions.pop(call_sid, None)
     if session:
         session.status = CallStatus.COMPLETE
-        # Persist transcript to Supabase
-        get_client().table("call_sessions").insert(
-            {
-                "id": session.id,
-                "user_id": session.user_id,
-                "mission": session.mission,
-                "status": CallStatus.COMPLETE,
-                "transcript": session.transcript,
-                "created_at": datetime.now(UTC).isoformat(),
-            }
-        ).execute()
+        db = get_db()
+        db.execute(
+            "INSERT INTO call_sessions (id, user_id, mission, status, transcript, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                session.id,
+                session.user_id,
+                session.mission,
+                CallStatus.COMPLETE,
+                json.dumps(session.transcript),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        db.commit()

@@ -18,8 +18,7 @@ dependencies = [
     # Browser automation
     "browser-use>=0.13.14",
     "playwright>=1.49.0",
-    # Database
-    "supabase>=2.10.0",
+    # Database (SQLite — built into Python, no extra dependency needed)
     # Utilities
     "python-dotenv>=1.0.1",
     "pydantic>=2.10.4",
