@@ -1,6 +1,6 @@
 # 🐷 Sniff
 
-An open-source AI assistant that can make phone calls on your behalf. Think Muse or Instinct, but with a voice — it can call restaurants, schedule appointments, and handle errands over the phone.
+An open-source AI assistant that can make phone calls on your behalf. Like Muse or Instinct, but with a voice — it can call restaurants, schedule appointments, and handle errands over the phone.
 
 Built with Gemini Flash, Pipecat, Twilio, and Cartesia. Runs for under $5/month.
 
