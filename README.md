@@ -12,6 +12,31 @@ Built with Gemini Flash, Pipecat, Twilio, and Cartesia. Runs for under $5/month.
 - **Browser automation** — browser-use for tasks that require clicking buttons and filling forms
 - **Semantic memory** — remembers your preferences across conversations using pgvector embeddings
 
+## Demo
+
+### 📞 Voice Calling — `place_call`
+Sniff calls a restaurant, books a table, and sends back a summary with confirmation details.
+
+<p align="center">
+  <img src="blog/demo/booking-reservation-demo.gif" width="300" alt="Sniff booking a restaurant reservation via phone call" />
+</p>
+
+### ✈️ Flight Search — `scrappa_search`
+Real-time flight pricing from structured APIs. Sniff finds the cheapest options and formats them for quick scanning.
+
+<p align="center">
+  <img src="blog/demo/flight-search-p1.PNG" width="300" />
+  <img src="blog/demo/flight-search-p2.PNG" width="300" />
+</p>
+
+### 🍽️ Restaurant Search — `web_search`
+Sniff searches for restaurants matching your criteria and returns ratings, price range, and standout dishes.
+
+<p align="center">
+  <img src="blog/demo/restaurant-p1.PNG" width="300" />
+  <img src="blog/demo/restaurant-p2.PNG" width="300" />
+</p>
+
 ## Architecture
 
 ```

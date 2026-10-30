@@ -10,7 +10,13 @@ from collections.abc import Callable
 from fastapi import WebSocket
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
-from pipecat.frames.frames import EndFrame, Frame, LLMContextFrame, TextFrame
+from pipecat.frames.frames import (
+    EndFrame,
+    Frame,
+    LLMContextFrame,
+    TextFrame,
+    UserStartedSpeakingFrame,
+)
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -20,16 +26,16 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregator,
     LLMUserAggregatorParams,
 )
-from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
-    SpeechTimeoutUserTurnStopStrategy,
-)
-from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.cartesia.stt import CartesiaSTTService
 from pipecat.services.cartesia.tts import CartesiaTTSService
 from pipecat.services.google.llm import GoogleLLMService
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
+from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
+    SpeechTimeoutUserTurnStopStrategy,
+)
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 from auth.users import User, get_user_by_id
 from capabilities.call.session import close_session, get_session
@@ -58,11 +64,16 @@ class CallCompleteDetector(FrameProcessor):
         if isinstance(frame, TextFrame):
             self._buffer += frame.text
             if "CALL COMPLETE" in self._buffer:
-                logger.info("Call complete detected, ending call")
+                logger.info("Call complete detected, waiting for TTS to finish before hanging up")
                 if self.on_complete:
                     asyncio.create_task(self.on_complete())
-                if self._task:
-                    await self._task.queue_frames([EndFrame()])
+
+                async def _delayed_hangup():
+                    await asyncio.sleep(3)
+                    if self._task:
+                        await self._task.queue_frames([EndFrame()])
+
+                asyncio.create_task(_delayed_hangup())
                 return
             await self.push_frame(frame, direction)
         else:
@@ -174,9 +185,20 @@ async def run_pipeline(websocket: WebSocket, call_sid: str) -> None:
     assistant_aggregator = LLMAssistantAggregator(context=context)
     call_complete = CallCompleteDetector()
 
+    class SilenceCanceller(FrameProcessor):
+        """Cancel the silence fallback when the user first speaks."""
+
+        async def process_frame(self, frame: Frame, direction: FrameDirection):
+            await super().process_frame(frame, direction)
+            if isinstance(frame, UserStartedSpeakingFrame) and _silence_task:
+                _silence_task.cancel()
+                logger.info("User spoke, cancelled silence fallback")
+            await self.push_frame(frame, direction)
+
     pipeline = Pipeline(
         [
             transport.input(),
+            SilenceCanceller(),
             stt,
             user_aggregator,
             llm,
@@ -232,7 +254,7 @@ async def run_pipeline(websocket: WebSocket, call_sid: str) -> None:
 
     MAX_CALL_DURATION = 5 * 60  # 5 minutes
 
-    _silence_greeted = False
+    _silence_task: asyncio.Task | None = None
     _timeout_task: asyncio.Task | None = None
 
     @transport.event_handler("on_client_connected")
@@ -240,20 +262,18 @@ async def run_pipeline(websocket: WebSocket, call_sid: str) -> None:
         logger.info("Client connected, waiting for person to speak...")
 
         async def _silence_fallback():
-            nonlocal _silence_greeted
             await asyncio.sleep(3)
-            if not _silence_greeted:
-                _silence_greeted = True
-                logger.info("No speech after 3s, initiating greeting")
-                context.add_message(
-                    {
-                        "role": "user",
-                        "content": "[Call connected. No one has spoken yet. Say hi and confirm you reached the right place, then state your request.]",
-                    }
-                )
-                await task.queue_frames([LLMContextFrame(context=context)])
+            logger.info("No speech after 3s, initiating greeting")
+            context.add_message(
+                {
+                    "role": "user",
+                    "content": "[Call connected. No one has spoken yet. Say hi and confirm you reached the right place, then state your request.]",
+                }
+            )
+            await task.queue_frames([LLMContextFrame(context=context)])
 
-        asyncio.create_task(_silence_fallback())
+        nonlocal _silence_task
+        _silence_task = asyncio.create_task(_silence_fallback())
 
         async def _timeout_hangup():
             await asyncio.sleep(MAX_CALL_DURATION)
